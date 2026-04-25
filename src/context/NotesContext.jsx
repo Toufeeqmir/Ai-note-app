@@ -42,7 +42,7 @@ export const NotesProvider = ({ children })  =>{
          setNotes((prev) =>
          prev.map((note) =>
             note.id === id
-         ? {...note , ...updates, updateAt: new Date().toISOString()
+         ? {...note , ...updates, updatedAt: new Date().toISOString()
          }
          : note
         )
