@@ -25,7 +25,7 @@ export const NotesProvider = ({ children })  =>{
 
 
          id: uuidv4(),
-         title : "Untitled Note",
+         title : "",
          content : "",
          tags : [],
          pinned : false,
@@ -97,6 +97,7 @@ export const NotesProvider = ({ children })  =>{
         updateNote,
         deleteNote,
         togglePin,
+        
       }}
      >
          {children}
