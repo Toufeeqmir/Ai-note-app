@@ -25,7 +25,7 @@ const NoteEditor = ({ setShowAIPanel , setAiResult, setAiLoading}) =>{
 
     }, 500);
     return () => clearTimeout(timeout);
-  }, [title, content]);
+  }, [activeNote, title, content, updateNote]);
 
   //AI action Handler
   const handleAI = async (action) =>{
@@ -36,7 +36,7 @@ const NoteEditor = ({ setShowAIPanel , setAiResult, setAiLoading}) =>{
 
     try{
       let result = "";
-      if(action == "summarize") result = await summarizeNote(content);
+      if(action === "summarize") result = await summarizeNote(content);
       if(action === "cleanup") result = await cleanupNote(content);
       if(action === "tags"){
         const tags = await generateTags(content);
@@ -47,13 +47,13 @@ const NoteEditor = ({ setShowAIPanel , setAiResult, setAiLoading}) =>{
       if(action === "title"){
         const newTitle = await generateTitle(content);
         setTitle(newTitle);
-        updateNote(activeNote.di, {title: newTitle});
-        result = `Title updated to : "${newtitle}`;
+        updateNote(activeNote.id, {title: newTitle});
+        result = `Title updated to: "${newTitle}"`;
       }
 
       setAiResult(result);
     }catch(error){
-      setAiResult("Error", + error.message);
+      setAiResult(`Error: ${error.message}`);
     }finally{
       setAiLoading(false);
     }

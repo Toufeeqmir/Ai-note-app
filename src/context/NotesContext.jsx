@@ -51,7 +51,6 @@ export const NotesProvider = ({ children })  =>{
       };
 
       //Delete Note
-
       const deleteNote = (id) =>{
         setNotes((prev) => prev.filter((note) => note.id !==id));
         if(activeNoteId === id) setActiveNoteId(null);
@@ -60,14 +59,13 @@ export const NotesProvider = ({ children })  =>{
       //Pin/unpin note
       const togglePin = (id) =>{
         setNotes((prev) =>
-        prev.map((notes) =>
+        prev.map((note) =>
          note.id === id? {...note, pinned: !note.pinned} : note
         )
     );
       };
 
       //Get active note
-
      const activeNote = notes.find((note) => note.id === activeNoteId) || null;
 
   // Filtered notes based on search
@@ -81,7 +79,6 @@ export const NotesProvider = ({ children })  =>{
   );
 
   //Pinned Notes on top
-
   const sortedNotes = [
      ...filteredNotes.filter((n) => n.pinned),
      ...filteredNotes.filter((n) => !n.pinned),
