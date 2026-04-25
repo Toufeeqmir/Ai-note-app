@@ -6,12 +6,10 @@
   "scripts": {
     "dev": "node dev.mjs",
     "dev:client": "vite",
-    "dev: server": "node server.mjs",
-
+    "dev:server": "node server.mjs",
     "build": "vite build",
     "lint": "eslint .",
-     "preview": "node server.mjs"
-    
+    "preview": "node server.mjs"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.2.4",
