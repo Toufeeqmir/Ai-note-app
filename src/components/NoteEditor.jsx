@@ -9,7 +9,7 @@ import {
 } from "../utils/aiHelper";
 import { Video, Sparkles, Wand2, Tag, Type, FileText, PenSquare } from "lucide-react";
 
-const NoteEditor = ({ setShowAIPanel, setAiResult, setAiLoading }) => {
+const NoteEditor = ({ aiLoading, setShowAIPanel, setAiResult, setAiLoading }) => {
   const { activeNote, updateNote, addNote } = useNotes();
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
@@ -17,6 +17,7 @@ const NoteEditor = ({ setShowAIPanel, setAiResult, setAiLoading }) => {
   const [showYoutubeInput, setShowYoutubeInput] = useState(false);
 
   const handleYoutubeSummarize = async () => {
+    if (aiLoading) return;
     if (!youtubeUrl.trim()) return;
 
     setShowAIPanel(true);
@@ -58,6 +59,7 @@ const NoteEditor = ({ setShowAIPanel, setAiResult, setAiLoading }) => {
   }, [activeNote, title, content, updateNote]);
 
   const handleAI = async (action) => {
+    if (aiLoading) return;
     if (!activeNote) return;
 
     setShowAIPanel(true);
@@ -134,9 +136,10 @@ const NoteEditor = ({ setShowAIPanel, setAiResult, setAiLoading }) => {
             <button
               type="button"
               onClick={handleYoutubeSummarize}
-              className="rounded-xl bg-red-500 px-4 py-2.5 text-sm font-medium text-white transition-all duration-200 hover:bg-red-600"
+              disabled={aiLoading}
+              className="rounded-xl bg-red-500 px-4 py-2.5 text-sm font-medium text-white transition-all duration-200 hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              Summarize
+              {aiLoading ? "Working..." : "Summarize"}
             </button>
             <button
               type="button"
@@ -183,7 +186,8 @@ const NoteEditor = ({ setShowAIPanel, setAiResult, setAiLoading }) => {
 
         <button
           onClick={() => handleAI("summarize")}
-          className="inline-flex items-center gap-1.5 rounded-xl bg-violet-50 px-3 py-2 text-xs font-medium text-violet-600 transition-all duration-200 hover:bg-violet-100 dark:bg-violet-900/20 dark:text-violet-300 dark:hover:bg-violet-900/40"
+          disabled={aiLoading}
+          className="inline-flex items-center gap-1.5 rounded-xl bg-violet-50 px-3 py-2 text-xs font-medium text-violet-600 transition-all duration-200 hover:bg-violet-100 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-violet-900/20 dark:text-violet-300 dark:hover:bg-violet-900/40"
         >
           <Sparkles size={13} />
           Summarize
@@ -191,7 +195,8 @@ const NoteEditor = ({ setShowAIPanel, setAiResult, setAiLoading }) => {
 
         <button
           onClick={() => handleAI("cleanup")}
-          className="inline-flex items-center gap-1.5 rounded-xl bg-blue-50 px-3 py-2 text-xs font-medium text-blue-600 transition-all duration-200 hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-300 dark:hover:bg-blue-900/40"
+          disabled={aiLoading}
+          className="inline-flex items-center gap-1.5 rounded-xl bg-blue-50 px-3 py-2 text-xs font-medium text-blue-600 transition-all duration-200 hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-blue-900/20 dark:text-blue-300 dark:hover:bg-blue-900/40"
         >
           <Wand2 size={13} />
           Clean Up
@@ -199,7 +204,8 @@ const NoteEditor = ({ setShowAIPanel, setAiResult, setAiLoading }) => {
 
         <button
           onClick={() => handleAI("tags")}
-          className="inline-flex items-center gap-1.5 rounded-xl bg-green-50 px-3 py-2 text-xs font-medium text-green-600 transition-all duration-200 hover:bg-green-100 dark:bg-green-900/20 dark:text-green-300 dark:hover:bg-green-900/40"
+          disabled={aiLoading}
+          className="inline-flex items-center gap-1.5 rounded-xl bg-green-50 px-3 py-2 text-xs font-medium text-green-600 transition-all duration-200 hover:bg-green-100 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-green-900/20 dark:text-green-300 dark:hover:bg-green-900/40"
         >
           <Tag size={13} />
           Auto Tags
@@ -207,7 +213,8 @@ const NoteEditor = ({ setShowAIPanel, setAiResult, setAiLoading }) => {
 
         <button
           onClick={() => handleAI("title")}
-          className="inline-flex items-center gap-1.5 rounded-xl bg-orange-50 px-3 py-2 text-xs font-medium text-orange-600 transition-all duration-200 hover:bg-orange-100 dark:bg-orange-900/20 dark:text-orange-300 dark:hover:bg-orange-900/40"
+          disabled={aiLoading}
+          className="inline-flex items-center gap-1.5 rounded-xl bg-orange-50 px-3 py-2 text-xs font-medium text-orange-600 transition-all duration-200 hover:bg-orange-100 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-orange-900/20 dark:text-orange-300 dark:hover:bg-orange-900/40"
         >
           <Type size={13} />
           Gen Title

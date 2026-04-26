@@ -5,6 +5,14 @@ function json(response, statusCode, payload) {
   response.status(statusCode).json(payload);
 }
 
+function getUpstreamErrorMessage(statusCode, payload, fallback) {
+  if (statusCode === 429) {
+    return "Rate limit reached for the current AI provider/model. Please wait a bit and try again, or switch to a different model/provider.";
+  }
+
+  return payload?.error?.message || fallback;
+}
+
 export async function handleAi(request, response) {
   if (request.method !== "POST") {
     response.setHeader("Allow", "POST");
@@ -54,9 +62,11 @@ export async function handleAi(request, response) {
     if (!upstreamResponse.ok) {
       return json(response, upstreamResponse.status, {
         error: {
-          message:
-            payload?.error?.message ||
-            `Request failed with status ${upstreamResponse.status}.`,
+          message: getUpstreamErrorMessage(
+            upstreamResponse.status,
+            payload,
+            `Request failed with status ${upstreamResponse.status}.`
+          ),
         },
         details: payload,
       });

@@ -14,6 +14,14 @@ const publicIndexPath = path.join(distDir, "index.html");
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 const AI_MODEL = "google/gemma-3-4b-it:free";
 
+function getUpstreamErrorMessage(statusCode, payload, fallback) {
+  if (statusCode === 429) {
+    return "Rate limit reached for the current AI provider/model. Please wait a bit and try again, or switch to a different model/provider.";
+  }
+
+  return payload?.error?.message || fallback;
+}
+
 loadEnvFile(path.join(__dirname, ".env"));
 dns.setDefaultResultOrder("ipv4first");
 
@@ -101,9 +109,11 @@ async function handleAiRequest(req, res) {
   if (!response.ok) {
     return sendJson(res, response.status, {
       error: {
-        message:
-          payload?.error?.message ||
-          `Request failed with status ${response.status}.`,
+        message: getUpstreamErrorMessage(
+          response.status,
+          payload,
+          `Request failed with status ${response.status}.`
+        ),
       },
       details: payload,
     });
@@ -204,7 +214,11 @@ ${transcript.substring(0, 8000)}`;
     if (!response.ok) {
       return sendJson(res, response.status, {
         error: {
-          message: payload?.error?.message || "AI request failed",
+          message: getUpstreamErrorMessage(
+            response.status,
+            payload,
+            "AI request failed."
+          ),
         },
         details: payload,
       });

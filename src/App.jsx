@@ -36,6 +36,7 @@ const App = () => {
 
           <main className="min-w-0 flex-1 overflow-y-auto">
             <NoteEditor
+              aiLoading={aiLoading}
               setShowAIPanel={setShowAIPanel}
               setAiResult={setAiResult}
               setAiLoading={setAiLoading}
