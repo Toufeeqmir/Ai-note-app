@@ -13,6 +13,7 @@ const publicIndexPath = path.join(distDir, "index.html");
 // ✅ Changed to OpenRouter
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 const AI_MODEL = "google/gemma-3-4b-it:free";
+const TRANSCRIPT_API_URL = "https://transcriptapi.com/api/v2/youtube/transcript";
 
 function getUpstreamErrorMessage(statusCode, payload, fallback) {
   if (statusCode === 429) {
@@ -20,6 +21,55 @@ function getUpstreamErrorMessage(statusCode, payload, fallback) {
   }
 
   return payload?.error?.message || fallback;
+}
+
+function extractVideoId(url) {
+  const videoIdMatch = url.match(
+    /(?:youtube\.com\/watch\?v=|youtube\.com\/shorts\/|youtube\.com\/embed\/|youtu\.be\/)([^&\n?#]+)/
+  );
+
+  return videoIdMatch?.[1] || null;
+}
+
+async function fetchTranscriptText(url, videoId) {
+  const transcriptApiKey = process.env.TRANSCRIPTAPI_API_KEY?.trim();
+
+  if (transcriptApiKey) {
+    const response = await fetch(
+      `${TRANSCRIPT_API_URL}?video_url=${encodeURIComponent(url)}`,
+      {
+        headers: {
+          Authorization: `Bearer ${transcriptApiKey}`,
+        },
+      }
+    );
+
+    const payload = await response.json().catch(() => null);
+
+    if (!response.ok) {
+      throw new Error(
+        getUpstreamErrorMessage(
+          response.status,
+          payload,
+          `Transcript API request failed with status ${response.status}.`
+        )
+      );
+    }
+
+    const transcript = Array.isArray(payload?.transcript)
+      ? payload.transcript.map((item) => item.text).join(" ").trim()
+      : "";
+
+    if (!transcript) {
+      throw new Error("No transcript found for this video.");
+    }
+
+    return transcript;
+  }
+
+  const { YoutubeTranscript } = await import("youtube-transcript");
+  const transcriptItems = await YoutubeTranscript.fetchTranscript(videoId);
+  return transcriptItems.map((item) => item.text).join(" ").trim();
 }
 
 loadEnvFile(path.join(__dirname, ".env"));
@@ -135,17 +185,13 @@ async function handleYoutubeRequest(req, res) {
       });
     }
 
-    const videoIdMatch = url.match(
-      /(?:youtube\.com\/watch\?v=|youtube\.com\/shorts\/|youtube\.com\/embed\/|youtu\.be\/)([^&\n?#]+)/
-    );
+    const videoId = extractVideoId(url);
 
-    if (!videoIdMatch) {
+    if (!videoId) {
       return sendJson(res, 400, {
         error: { message: "Invalid YouTube URL." },
       });
     }
-
-    const videoId = videoIdMatch[1];
     const apiKey = process.env.OPENROUTER_API_KEY?.trim();
 
     if (!apiKey) {
@@ -154,11 +200,10 @@ async function handleYoutubeRequest(req, res) {
       });
     }
 
-    const { YoutubeTranscript } = await import("youtube-transcript");
-    let transcriptItems;
+    let transcript;
 
     try {
-      transcriptItems = await YoutubeTranscript.fetchTranscript(videoId);
+      transcript = await fetchTranscriptText(url, videoId);
     } catch (error) {
       return sendJson(res, 502, {
         error: {
@@ -166,8 +211,6 @@ async function handleYoutubeRequest(req, res) {
         },
       });
     }
-
-    const transcript = transcriptItems.map((item) => item.text).join(" ").trim();
 
     if (!transcript) {
       return sendJson(res, 400, {

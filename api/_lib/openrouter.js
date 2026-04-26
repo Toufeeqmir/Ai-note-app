@@ -1,5 +1,6 @@
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 const AI_MODEL = "google/gemma-3-4b-it:free";
+const TRANSCRIPT_API_URL = "https://transcriptapi.com/api/v2/youtube/transcript";
 
 function json(response, statusCode, payload) {
   response.status(statusCode).json(payload);
@@ -18,12 +19,65 @@ function getApiKey() {
   return process.env.OPENROUTER_API_KEY?.trim();
 }
 
+function getTranscriptApiKey() {
+  return process.env.TRANSCRIPTAPI_API_KEY?.trim();
+}
+
 function getUpstreamErrorMessage(statusCode, payload, fallback) {
   if (statusCode === 429) {
     return "Rate limit reached for the current AI provider/model. Please wait a bit and try again, or switch to a different model/provider.";
   }
 
   return payload?.error?.message || fallback;
+}
+
+function extractVideoId(url) {
+  const videoIdMatch = url.match(
+    /(?:youtube\.com\/watch\?v=|youtube\.com\/shorts\/|youtube\.com\/embed\/|youtu\.be\/)([^&\n?#]+)/
+  );
+
+  return videoIdMatch?.[1] || null;
+}
+
+async function fetchTranscriptText(url, videoId) {
+  const transcriptApiKey = getTranscriptApiKey();
+
+  if (transcriptApiKey) {
+    const response = await fetch(
+      `${TRANSCRIPT_API_URL}?video_url=${encodeURIComponent(url)}`,
+      {
+        headers: {
+          Authorization: `Bearer ${transcriptApiKey}`,
+        },
+      }
+    );
+
+    const payload = await response.json().catch(() => null);
+
+    if (!response.ok) {
+      throw new Error(
+        getUpstreamErrorMessage(
+          response.status,
+          payload,
+          `Transcript API request failed with status ${response.status}.`
+        )
+      );
+    }
+
+    const transcript = Array.isArray(payload?.transcript)
+      ? payload.transcript.map((item) => item.text).join(" ").trim()
+      : "";
+
+    if (!transcript) {
+      throw new Error("No transcript found for this video.");
+    }
+
+    return transcript;
+  }
+
+  const { YoutubeTranscript } = await import("youtube-transcript");
+  const transcriptItems = await YoutubeTranscript.fetchTranscript(videoId);
+  return transcriptItems.map((item) => item.text).join(" ").trim();
 }
 
 export async function handleAi(request, response) {
@@ -113,22 +167,17 @@ export async function handleYoutube(request, response) {
     });
   }
 
-  const videoIdMatch = url.match(
-    /(?:youtube\.com\/watch\?v=|youtube\.com\/shorts\/|youtube\.com\/embed\/|youtu\.be\/)([^&\n?#]+)/
-  );
+  const videoId = extractVideoId(url);
 
-  if (!videoIdMatch) {
+  if (!videoId) {
     return json(response, 400, {
       error: { message: "Invalid YouTube URL." },
     });
   }
-
-  const videoId = videoIdMatch[1];
-
-  let transcriptItems;
+  
+  let transcript;
   try {
-    const { YoutubeTranscript } = await import("youtube-transcript");
-    transcriptItems = await YoutubeTranscript.fetchTranscript(videoId);
+    transcript = await fetchTranscriptText(url, videoId);
   } catch (error) {
     return json(response, 502, {
       error: {
@@ -138,8 +187,6 @@ export async function handleYoutube(request, response) {
       },
     });
   }
-
-  const transcript = transcriptItems.map((item) => item.text).join(" ").trim();
 
   if (!transcript) {
     return json(response, 400, {

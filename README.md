@@ -42,6 +42,7 @@ The app has two main parts:
 2. Backend
    - Local development uses `server.mjs`
    - The backend reads `OPENROUTER_API_KEY` from `.env`
+   - The YouTube transcript flow can read `TRANSCRIPTAPI_API_KEY` for production transcript fetching
    - It forwards AI prompts to OpenRouter
    - It fetches YouTube transcripts and summarizes them
 
@@ -90,6 +91,7 @@ Example:
 
 ```env
 OPENROUTER_API_KEY=your_openrouter_api_key_here
+TRANSCRIPTAPI_API_KEY=your_transcriptapi_key_here
 PORT=3001
 ```
 
@@ -98,6 +100,9 @@ Variables:
 - `OPENROUTER_API_KEY`
   - required
   - used by the backend to call OpenRouter
+- `TRANSCRIPTAPI_API_KEY`
+  - optional locally, recommended for deployment
+  - used to fetch YouTube transcripts through TranscriptAPI in production
 - `PORT`
   - optional
   - default is `3001`
@@ -264,17 +269,12 @@ Current Vercel API files:
 
 - `api/ai.js`
 - `api/health.js`
-
-Important limitation:
-
-- the local Node backend supports `/api/youtube`
-- the current Vercel `api/` folder does not yet include a deployed YouTube summary function
-
-So if you deploy to Vercel right now, note AI can work through `api/ai.js`, but YouTube summarization will need a matching serverless route added before it works there.
+- `api/youtube.js`
 
 Set this environment variable in Vercel:
 
 - `OPENROUTER_API_KEY`
+- `TRANSCRIPTAPI_API_KEY`
 
 Deploy with:
 
@@ -299,6 +299,7 @@ Check:
 - backend is running
 - `.env` exists
 - `OPENROUTER_API_KEY` is valid
+- if using deployed YouTube summaries, `TRANSCRIPTAPI_API_KEY` is set
 - your machine can reach OpenRouter and YouTube
 
 ### 2. `Cannot find module ... serve.mjs`
@@ -321,6 +322,7 @@ Make sure the root `.env` file exists and contains:
 
 ```env
 OPENROUTER_API_KEY=your_key_here
+TRANSCRIPTAPI_API_KEY=your_transcript_api_key_here
 ```
 
 Restart the backend after changing it.
@@ -331,6 +333,7 @@ Possible reasons:
 
 - invalid YouTube URL
 - video has no transcript/captions
+- `TRANSCRIPTAPI_API_KEY` is missing in deployment
 - transcript source could not be reached
 - OpenRouter request failed
 
@@ -348,7 +351,6 @@ Notes are stored only in browser `localStorage`. Clearing browser data removes t
 
 - Add database storage
 - Add authentication
-- Add Vercel/serverless support for `/api/youtube`
 - Allow exporting notes
 - Better note categories and folders
 - Rich text editor
