@@ -1,17 +1,44 @@
 import { useEffect, useState } from "react";
 import { useNotes } from "../context/NotesContext";
 import {
+  summarizeYoutube,
   summarizeNote,
   cleanupNote,
   generateTags,
   generateTitle,
 } from "../utils/aiHelper";
-import { Sparkles, Wand2, Tag, Type, FileText } from "lucide-react";
+import { Video, Sparkles, Wand2, Tag, Type, FileText, PenSquare } from "lucide-react";
 
 const NoteEditor = ({ setShowAIPanel, setAiResult, setAiLoading }) => {
-  const { activeNote, updateNote } = useNotes();
+  const { activeNote, updateNote, addNote } = useNotes();
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
+  const [youtubeUrl, setYoutubeUrl] = useState("");
+  const [showYoutubeInput, setShowYoutubeInput] = useState(false);
+
+  const handleYoutubeSummarize = async () => {
+    if (!youtubeUrl.trim()) return;
+
+    setShowAIPanel(true);
+    setAiLoading(true);
+    setAiResult("");
+
+    try {
+      const result = await summarizeYoutube(youtubeUrl);
+      addNote({
+        title: "YouTube Summary",
+        content: `Source: ${youtubeUrl}\n\n${result}`,
+        tags: ["youtube", "summary"],
+      });
+      setAiResult(result);
+      setYoutubeUrl("");
+      setShowYoutubeInput(false);
+    } catch (error) {
+      setAiResult(`Error: ${error.message}`);
+    } finally {
+      setAiLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (activeNote) {
@@ -62,6 +89,68 @@ const NoteEditor = ({ setShowAIPanel, setAiResult, setAiLoading }) => {
     }
   };
 
+  const renderYoutubePrompt = (compact = false) => (
+    <div
+      className={`rounded-2xl border border-red-100 bg-red-50/80 ${
+        compact ? "mt-4 p-4" : "mt-6 max-w-2xl p-5"
+      } dark:border-red-900/30 dark:bg-red-950/20`}
+    >
+      <div className="flex items-start gap-3">
+        <div className="rounded-xl bg-white p-2 text-red-500 shadow-sm dark:bg-slate-900">
+          <Video size={18} />
+        </div>
+        <div className="flex-1">
+          <p className="text-sm font-semibold text-slate-800 dark:text-white">
+            Summarize any YouTube video into a saved note
+          </p>
+          <p className="mt-1 text-sm leading-relaxed text-slate-600 dark:text-slate-300">
+            Paste a YouTube link, generate an AI summary, and the result will be
+            saved automatically as a new editable note.
+          </p>
+
+          {!showYoutubeInput && (
+            <button
+              type="button"
+              onClick={() => setShowYoutubeInput(true)}
+              className="mt-3 inline-flex items-center gap-2 rounded-xl bg-red-500 px-3 py-2 text-sm font-medium text-white transition-all duration-200 hover:bg-red-600"
+            >
+              <Video size={14} />
+              Try YouTube Summary
+            </button>
+          )}
+        </div>
+      </div>
+
+      {showYoutubeInput && (
+        <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
+          <input
+            type="text"
+            value={youtubeUrl}
+            onChange={(e) => setYoutubeUrl(e.target.value)}
+            placeholder="Paste YouTube URL here..."
+            className="flex-1 rounded-xl border border-red-100 bg-white px-4 py-2.5 text-sm text-slate-700 outline-none transition focus:border-red-300 dark:border-red-900/30 dark:bg-slate-900 dark:text-slate-300"
+          />
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={handleYoutubeSummarize}
+              className="rounded-xl bg-red-500 px-4 py-2.5 text-sm font-medium text-white transition-all duration-200 hover:bg-red-600"
+            >
+              Summarize
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowYoutubeInput(false)}
+              className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-500 transition hover:bg-white dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-900"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
   if (!activeNote) {
     return (
       <div className="flex min-h-[calc(100vh-4rem)] flex-col items-center justify-center px-6 text-center">
@@ -72,6 +161,15 @@ const NoteEditor = ({ setShowAIPanel, setAiResult, setAiLoading }) => {
         <p className="mt-1 max-w-sm text-sm text-slate-400 dark:text-slate-600">
           Select a note from the sidebar or create a new one
         </p>
+        <button
+          type="button"
+          onClick={() => addNote()}
+          className="mt-4 inline-flex items-center gap-2 rounded-xl bg-violet-500 px-4 py-2.5 text-sm font-medium text-white transition-all duration-200 hover:bg-violet-600"
+        >
+          <PenSquare size={15} />
+          Create New Note
+        </button>
+        {renderYoutubePrompt()}
       </div>
     );
   }
@@ -117,12 +215,13 @@ const NoteEditor = ({ setShowAIPanel, setAiResult, setAiLoading }) => {
       </div>
 
       <div className="bg-white px-4 pt-5 pb-2 dark:bg-slate-900 sm:px-6">
+        {renderYoutubePrompt(true)}
         <input
           type="text"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="Note title..."
-          className="w-full bg-transparent text-2xl font-bold text-slate-800 outline-none placeholder:text-slate-300 dark:text-white dark:placeholder:text-slate-600 sm:text-3xl"
+          className="mt-5 w-full bg-transparent text-2xl font-bold text-slate-800 outline-none placeholder:text-slate-300 dark:text-white dark:placeholder:text-slate-600 sm:text-3xl"
         />
       </div>
 

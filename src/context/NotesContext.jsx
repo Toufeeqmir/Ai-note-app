@@ -20,22 +20,22 @@ export const NotesProvider = ({ children })  =>{
        
        //create new note
 
-       const addNote =() =>{
+       const addNote = (initialData = {}) =>{
+        const timestamp = new Date().toISOString();
         const newNote = {
-
-
          id: uuidv4(),
          title : "",
          content : "",
          tags : [],
          pinned : false,
-         createdAt:  new Date().toISOString(),
-         updatedAt : new Date().toISOString()
-
+         createdAt: timestamp,
+         updatedAt : timestamp,
+         ...initialData,
        };
 
        setNotes((prev)=> [newNote, ...prev]);
        setActiveNoteId(newNote.id);
+       return newNote;
 };
 //update existing note
       const updateNote = (id , updates) =>{

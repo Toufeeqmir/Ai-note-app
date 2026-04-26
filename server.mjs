@@ -1,4 +1,5 @@
 import { createServer } from "node:http";
+import dns from "node:dns";
 import { readFile, stat } from "node:fs/promises";
 import { readFileSync } from "node:fs";
 import path from "node:path";
@@ -14,6 +15,7 @@ const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 const AI_MODEL = "google/gemma-3-4b-it:free";
 
 loadEnvFile(path.join(__dirname, ".env"));
+dns.setDefaultResultOrder("ipv4first");
 
 const PORT = Number(process.env.PORT || 3001);
 
@@ -25,6 +27,10 @@ const server = createServer(async (req, res) => {
 
     if (req.method === "POST" && req.url === "/api/ai") {
       return handleAiRequest(req, res);
+    }
+
+    if (req.method === "POST" && req.url === "/api/youtube") {
+      return handleYoutubeRequest(req, res);
     }
 
     if (req.method === "GET") {
@@ -65,20 +71,30 @@ async function handleAiRequest(req, res) {
     });
   }
 
-  const response = await fetch(OPENROUTER_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${apiKey}`,
-      "HTTP-Referer": "http://localhost:5173",
-      "X-Title": "AI Notes App",
-    },
-    body: JSON.stringify({
-      model: AI_MODEL,
-      max_tokens: 1000,
-      messages: [{ role: "user", content: prompt }],
-    }),
-  });
+  let response;
+
+  try {
+    response = await fetch(OPENROUTER_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${apiKey}`,
+        "HTTP-Referer": "http://localhost:5173",
+        "X-Title": "AI Notes App",
+      },
+      body: JSON.stringify({
+        model: AI_MODEL,
+        max_tokens: 1000,
+        messages: [{ role: "user", content: prompt }],
+      }),
+    });
+  } catch (error) {
+    return sendJson(res, 502, {
+      error: {
+        message: `Failed to reach OpenRouter: ${error.message}`,
+      },
+    });
+  }
 
   const payload = await response.json().catch(() => null);
 
@@ -97,6 +113,116 @@ async function handleAiRequest(req, res) {
     text: payload?.choices?.[0]?.message?.content || "",
   });
 }
+
+async function handleYoutubeRequest(req, res) {
+  try {
+    const body = await readJsonBody(req);
+    const url = typeof body?.url === "string" ? body.url.trim() : "";
+
+    if (!url) {
+      return sendJson(res, 400, {
+        error: { message: "YouTube URL is required." },
+      });
+    }
+
+    const videoIdMatch = url.match(
+      /(?:youtube\.com\/watch\?v=|youtube\.com\/shorts\/|youtube\.com\/embed\/|youtu\.be\/)([^&\n?#]+)/
+    );
+
+    if (!videoIdMatch) {
+      return sendJson(res, 400, {
+        error: { message: "Invalid YouTube URL." },
+      });
+    }
+
+    const videoId = videoIdMatch[1];
+    const apiKey = process.env.OPENROUTER_API_KEY?.trim();
+
+    if (!apiKey) {
+      return sendJson(res, 500, {
+        error: { message: "Missing OPENROUTER_API_KEY in .env." },
+      });
+    }
+
+    const { YoutubeTranscript } = await import("youtube-transcript");
+    let transcriptItems;
+
+    try {
+      transcriptItems = await YoutubeTranscript.fetchTranscript(videoId);
+    } catch (error) {
+      return sendJson(res, 502, {
+        error: {
+          message: `Failed to fetch YouTube transcript: ${error.message}`,
+        },
+      });
+    }
+
+    const transcript = transcriptItems.map((item) => item.text).join(" ").trim();
+
+    if (!transcript) {
+      return sendJson(res, 400, {
+        error: { message: "No transcript found for this video." },
+      });
+    }
+
+    const prompt = `You are a helpful assistant. Analyze this YouTube video transcript and provide:
+1. What this video is about (2-3 sentences)
+2. Main topics covered (bullet points)
+3. Detailed summary
+4. Key takeaways
+
+Transcript:
+${transcript.substring(0, 8000)}`;
+
+    let response;
+
+    try {
+      response = await fetch(OPENROUTER_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+          "HTTP-Referer": "http://localhost:5173",
+          "X-Title": "AI Notes App",
+        },
+        body: JSON.stringify({
+          model: AI_MODEL,
+          max_tokens: 1500,
+          messages: [{ role: "user", content: prompt }],
+        }),
+      });
+    } catch (error) {
+      return sendJson(res, 502, {
+        error: {
+          message: `Failed to reach OpenRouter: ${error.message}`,
+        },
+      });
+    }
+
+    const payload = await response.json().catch(() => null);
+
+    if (!response.ok) {
+      return sendJson(res, response.status, {
+        error: {
+          message: payload?.error?.message || "AI request failed",
+        },
+        details: payload,
+      });
+    }
+
+    return sendJson(res, 200, {
+      text: payload?.choices?.[0]?.message?.content || "",
+      videoId,
+    });
+  } catch (error) {
+    return sendJson(res, 500, {
+      error: { message: error.message || "Failed to fetch transcript." },
+    });
+  }
+}
+
+
+
 
 async function serveStaticFile(req, res) {
   const requestedPath = req.url === "/" ? "/index.html" : req.url || "/index.html";
