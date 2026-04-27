@@ -1,6 +1,8 @@
+import process from "node:process";
+
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 const AI_MODEL = "google/gemma-3-4b-it:free";
-const TRANSCRIPT_API_URL = "https://transcriptapi.com/api/v2/youtube/transcript";
+const TRANSCRIPT_API_URL = "https://api.supadata.ai/v1/youtube/transcript";
 
 function json(response, statusCode, payload) {
   response.status(statusCode).json(payload);
@@ -20,7 +22,7 @@ function getApiKey() {
 }
 
 function getTranscriptApiKey() {
-  return process.env.TRANSCRIPTAPI_API_KEY?.trim();
+  return process.env.SUPADATA_API_KEY?.trim();
 }
 
 function getUpstreamErrorMessage(statusCode, payload, fallback) {
@@ -42,42 +44,39 @@ function extractVideoId(url) {
 async function fetchTranscriptText(url, videoId) {
   const transcriptApiKey = getTranscriptApiKey();
 
-  if (transcriptApiKey) {
-    const response = await fetch(
-      `${TRANSCRIPT_API_URL}?video_url=${encodeURIComponent(url)}`,
-      {
-        headers: {
-          Authorization: `Bearer ${transcriptApiKey}`,
-        },
-      }
-    );
-
-    const payload = await response.json().catch(() => null);
-
-    if (!response.ok) {
-      throw new Error(
-        getUpstreamErrorMessage(
-          response.status,
-          payload,
-          `Transcript API request failed with status ${response.status}.`
-        )
-      );
-    }
-
-    const transcript = Array.isArray(payload?.transcript)
-      ? payload.transcript.map((item) => item.text).join(" ").trim()
-      : "";
-
-    if (!transcript) {
-      throw new Error("No transcript found for this video.");
-    }
-
-    return transcript;
+  if (!transcriptApiKey) {
+    throw new Error("Missing SUPADATA_API_KEY environment variable.");
   }
 
-  const { YoutubeTranscript } = await import("youtube-transcript");
-  const transcriptItems = await YoutubeTranscript.fetchTranscript(videoId);
-  return transcriptItems.map((item) => item.text).join(" ").trim();
+  const response = await fetch(
+    `${TRANSCRIPT_API_URL}?videoId=${encodeURIComponent(videoId)}&text=true`,
+    {
+      headers: {
+        "x-api-key": transcriptApiKey,
+      },
+    }
+  );
+
+  const payload = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    throw new Error(
+      getUpstreamErrorMessage(
+        response.status,
+        payload,
+        `Supadata transcript request failed with status ${response.status}.`
+      )
+    );
+  }
+
+  const transcript =
+    typeof payload?.content === "string" ? payload.content.trim() : "";
+
+  if (!transcript) {
+    throw new Error("No transcript found for this video.");
+  }
+
+  return transcript;
 }
 
 export async function handleAi(request, response) {
