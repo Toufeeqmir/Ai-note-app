@@ -91,6 +91,7 @@ Example:
 
 ```env
 OPENROUTER_API_KEY=your_openrouter_api_key_here
+AI_MODEL=openrouter/free
 TRANSCRIPTAPI_API_KEY=your_transcriptapi_key_here
 PORT=3001
 ```
@@ -100,6 +101,10 @@ Variables:
 - `OPENROUTER_API_KEY`
   - required
   - used by the backend to call OpenRouter
+- `AI_MODEL`
+  - optional
+  - defaults to `openrouter/free`
+  - can be set to a specific OpenRouter model ID
 - `TRANSCRIPTAPI_API_KEY`
   - optional locally, recommended for deployment
   - used to fetch YouTube transcripts through TranscriptAPI in production
@@ -232,11 +237,13 @@ This means:
 
 ## AI Model
 
-Current backend model:
+Default backend model:
 
 ```text
-google/gemma-3-4b-it:free
+openrouter/free
 ```
+
+`openrouter/free` lets OpenRouter route to an available free model. To pin a specific model, set `AI_MODEL` in `.env`.
 
 Current provider:
 
@@ -274,6 +281,7 @@ Current Vercel API files:
 Set this environment variable in Vercel:
 
 - `OPENROUTER_API_KEY`
+- `AI_MODEL` if you want to override `openrouter/free`
 - `TRANSCRIPTAPI_API_KEY`
 
 Deploy with:

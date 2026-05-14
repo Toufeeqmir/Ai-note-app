@@ -12,7 +12,7 @@ const publicIndexPath = path.join(distDir, "index.html");
 
 // ✅ Changed to OpenRouter
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
-const AI_MODEL = "google/gemma-3-4b-it:free";
+const DEFAULT_AI_MODEL = "openrouter/free";
 const TRANSCRIPT_API_URL = "https://api.supadata.ai/v1/youtube/transcript";
 
 function getUpstreamErrorMessage(statusCode, payload, fallback) {
@@ -73,6 +73,7 @@ loadEnvFile(path.join(__dirname, ".env"));
 dns.setDefaultResultOrder("ipv4first");
 
 const PORT = Number(process.env.PORT || 3001);
+const AI_MODEL = process.env.AI_MODEL?.trim() || DEFAULT_AI_MODEL;
 
 const server = createServer(async (req, res) => {
   try {
@@ -99,6 +100,17 @@ const server = createServer(async (req, res) => {
       error: { message: "Internal server error" },
     });
   }
+});
+
+server.on("error", (error) => {
+  if (error.code === "EADDRINUSE") {
+    console.error(
+      `Port ${PORT} is already in use. Stop the process using it or set a different PORT.`
+    );
+    process.exit(1);
+  }
+
+  throw error;
 });
 
 server.listen(PORT, () => {

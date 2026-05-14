@@ -1,7 +1,8 @@
 import process from "node:process";
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
-const AI_MODEL = "google/gemma-3-4b-it:free";
+const DEFAULT_AI_MODEL = "openrouter/free";
+const AI_MODEL = process.env.AI_MODEL?.trim() || DEFAULT_AI_MODEL;
 const TRANSCRIPT_API_URL = "https://api.supadata.ai/v1/youtube/transcript";
 
 function json(response, statusCode, payload) {
